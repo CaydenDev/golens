@@ -22,18 +22,48 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go }}
+        check-latest: true
+        cache: true
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Install dependencies
       run: go mod download
 
-    - name: Run tests
-      run: go test -v ./...
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run tests with coverage
+      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.txt
+        fail_ci_if_error: false
 
     - name: Build
       run: |
-        go build -v
-        if ($IsWindows) { 
-          ./golens.exe -help 
-        } else { 
-          ./golens -help 
-        }
+        go build -v -o golens${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        
+    - name: Test binary
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          ./golens.exe -help
+        else
+          ./golens -help
+        fi
+
+    - name: Test image processing
+      shell: bash
+      run: |
+        # Create a test directory
+        mkdir -p test_images
+        # Create a test image using the test binary
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          ./golens.exe -input test_images/input.jpg -output test_images/output.jpg -brightness 1.2 -contrast 10
+        else
+          ./golens -input test_images/input.jpg -output test_images/output.jpg -brightness 1.2 -contrast 10
+        fi
