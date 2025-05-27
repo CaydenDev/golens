@@ -1,3 +1,3 @@
-module github.com/cayde/golens
+module github.com/CaydenDev/golens
 
 go 1.21
